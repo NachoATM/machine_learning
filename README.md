@@ -30,10 +30,6 @@ Fuentes adicionales:
 ## Herramientas usadas en el proyecto:
 
 * Python
-* R
-* Tableau
-* Gephi
-* Deep Learning frameworks
 
 ---
 
