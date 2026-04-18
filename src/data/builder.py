@@ -1,3 +1,5 @@
+"""CorpusBuilder: construye el DataFrame estructurado con feature engineering."""
+
 from __future__ import annotations
 
 import logging
