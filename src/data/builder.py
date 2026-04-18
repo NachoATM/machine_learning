@@ -60,7 +60,7 @@ class CorpusBuilder:
         for doc in self.raw_docs:
             records.append(self._build_record(doc))
         df = pd.DataFrame(records)
-        logger.info("DataFrame construido: %d docs × %d variables", *df.shape)
+        logger.info("DataFrame construido: %d docs - %d variables", *df.shape)
         return df
 
     # ── Métodos privados: feature engineering ──────────────────────────────────
