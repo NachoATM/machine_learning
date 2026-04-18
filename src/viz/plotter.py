@@ -1,5 +1,3 @@
-"""Plotter: helper compartido de visualización para todos los casos."""
-
 from __future__ import annotations
 
 import re
