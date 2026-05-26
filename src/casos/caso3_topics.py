@@ -505,6 +505,7 @@ class TopicModelCaso(BaseCaso):
         return df.sort_values(["topic", "prob_topic"], ascending=[True, False]).to_html(
             index=False, classes="tabla", border=0, table_id="documentos"
         )
+    
 
     def _envolver_panel_html(self, grafico: str) -> str:
         topicos = self._tabla_topicos_html()

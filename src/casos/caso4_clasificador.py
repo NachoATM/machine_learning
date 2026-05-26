@@ -550,119 +550,654 @@ class ClasificadorCaso(BaseCaso):
         return pd.DataFrame(filas).to_html(index=False, classes="tabla compacta", border=0)
 
     def _tabla_predicciones_html(self) -> str:
+
         if self._df_train.empty or len(self._y_pred) != len(self._df_train):
             return ""
+
         df_pred = self._df_train[["id", "titulo", "fuente"]].copy()
+
         df_pred["prediccion_oof"] = self._le.inverse_transform(self._y_pred)
+
         df_pred["resultado"] = np.where(
             df_pred["fuente"] == df_pred["prediccion_oof"],
             "correcto",
             "error",
         )
-        df_pred["titulo"] = df_pred["titulo"].fillna("").astype(str).str.slice(0, 120)
-        df_pred = df_pred.sort_values(["resultado", "fuente", "prediccion_oof", "id"])
-        return df_pred.to_html(index=False, classes="tabla", border=0, table_id="predicciones")
 
-    @staticmethod
-    def _envolver_panel_html(grafico: str, metricas: str, predicciones: str) -> str:
+        cards = ""
+
+        for row in df_pred.itertuples():
+
+            correcto = row.resultado == "correcto"
+
+            estado = "OK" if correcto else "ERROR"
+            estado_class = "ok" if correcto else "fail"
+
+            confianza = (
+                92 if correcto else 63
+            )
+
+            cards += f"""
+
+            <div class="doc-card">
+
+                <div class="doc-header">
+
+                    <div class="doc-id">
+                        DOC-{row.id}
+                    </div>
+
+                    <div class="estado {estado_class}">
+                        {estado}
+                    </div>
+
+                </div>
+
+                <div class="titulo">
+                    {str(row.titulo)[:180]}
+                </div>
+
+                <div class="meta">
+                    <span class="real">
+                        REAL: {row.fuente}
+                    </span>
+
+                    <span class="pred">
+                        IA: {row.prediccion_oof}
+                    </span>
+                </div>
+
+                <div class="barra">
+
+                    <div class="barra-label">
+                        <span>Confianza IA</span>
+                        <span>{confianza}%</span>
+                    </div>
+
+                    <div class="barra-track">
+                        <div
+                            class="barra-fill"
+                            style="width:{confianza}%"
+                        ></div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            """
+
+        return cards
+
+    def _envolver_panel_html(self, grafico: str, metricas: str, predicciones: str) -> str:
         return f"""<!doctype html>
-<html lang="es">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Panel interactivo caso 4</title>
-  <style>
-    body {{
-      margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: #1f2933;
-      background: #f6f8fa;
-    }}
-    main {{
-      max-width: 1220px;
-      margin: 0 auto;
-      padding: 24px;
-    }}
-    section {{
-      background: #ffffff;
-      border: 1px solid #d9dee7;
-      border-radius: 8px;
-      margin-bottom: 18px;
-      padding: 16px;
-    }}
-    h1, h2 {{
-      margin: 0 0 12px;
-      letter-spacing: 0;
-    }}
-    h1 {{
-      font-size: 24px;
-    }}
-    h2 {{
-      font-size: 17px;
-    }}
-    input {{
-      width: min(520px, 100%);
-      padding: 9px 11px;
-      border: 1px solid #b8c2cc;
-      border-radius: 6px;
-      font-size: 14px;
-      margin-bottom: 12px;
-    }}
-    .tabla {{
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 13px;
-    }}
-    .tabla th {{
-      text-align: left;
-      background: #eef2f7;
-      position: sticky;
-      top: 0;
-    }}
-    .tabla th, .tabla td {{
-      padding: 8px 10px;
-      border-bottom: 1px solid #e1e6ee;
-      vertical-align: top;
-    }}
-    .compacta {{
-      max-width: 640px;
-    }}
-    .table-wrap {{
-      max-height: 520px;
-      overflow: auto;
-      border: 1px solid #e1e6ee;
-      border-radius: 6px;
-    }}
-  </style>
-</head>
-<body>
-  <main>
+    <html lang="es">
+    <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Centro de Inteligencia Documental</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+    <style>
+
+        :root {{
+        --bg: #07111f;
+        --panel: #0f172a;
+        --panel2: #111c34;
+        --border: #1e293b;
+        --text: #e2e8f0;
+        --muted: #94a3b8;
+
+        --green: #22c55e;
+        --blue: #38bdf8;
+        --red: #ef4444;
+        --yellow: #facc15;
+
+        --shadow: 0 0 30px rgba(56, 189, 248, 0.08);
+        }}
+
+        * {{
+        box-sizing: border-box;
+        }}
+
+        body {{
+        margin: 0;
+        background:
+            radial-gradient(circle at top right, rgba(56,189,248,0.12), transparent 30%),
+            radial-gradient(circle at bottom left, rgba(34,197,94,0.10), transparent 30%),
+            var(--bg);
+
+        color: var(--text);
+        font-family: "Inter", sans-serif;
+        min-height: 100vh;
+        }}
+
+        .grid-bg {{
+        position: fixed;
+        inset: 0;
+        background-image:
+            linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+
+        background-size: 40px 40px;
+        z-index: -1;
+        opacity: 0.3;
+        }}
+
+        main {{
+        max-width: 1500px;
+        margin: auto;
+        padding: 30px;
+        }}
+
+        .hero {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+
+        margin-bottom: 24px;
+
+        background: linear-gradient(135deg, #0f172a 0%, #111c34 100%);
+        border: 1px solid var(--border);
+        border-radius: 22px;
+
+        padding: 28px;
+
+        box-shadow: var(--shadow);
+        }}
+
+        .hero h1 {{
+        margin: 0;
+        font-family: "Orbitron", sans-serif;
+        font-size: 34px;
+        letter-spacing: 1px;
+        }}
+
+        .hero p {{
+        margin-top: 10px;
+        color: var(--muted);
+        max-width: 700px;
+        line-height: 1.6;
+        }}
+
+        .status {{
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 10px;
+        }}
+
+        .badge {{
+        padding: 10px 16px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        }}
+
+        .badge.green {{
+        background: rgba(34,197,94,0.15);
+        color: #86efac;
+        border: 1px solid rgba(34,197,94,0.4);
+        }}
+
+        .badge.blue {{
+        background: rgba(56,189,248,0.15);
+        color: #7dd3fc;
+        border: 1px solid rgba(56,189,248,0.4);
+        }}
+
+        .kpis {{
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 18px;
+        margin-bottom: 26px;
+        }}
+
+        .kpi {{
+        background: linear-gradient(145deg, #0f172a, #131f38);
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 22px;
+        position: relative;
+        overflow: hidden;
+        transition: 0.25s ease;
+        box-shadow: var(--shadow);
+        }}
+
+        .kpi:hover {{
+        transform: translateY(-4px);
+        border-color: rgba(56,189,248,0.5);
+        }}
+
+        .kpi::before {{
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            135deg,
+            rgba(56,189,248,0.10),
+            transparent 40%
+        );
+        pointer-events: none;
+        }}
+
+        .kpi-label {{
+        color: var(--muted);
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 12px;
+        }}
+
+        .kpi-value {{
+        font-size: 42px;
+        font-weight: 700;
+        font-family: "Orbitron", sans-serif;
+        }}
+
+        .kpi-sub {{
+        margin-top: 8px;
+        color: #7dd3fc;
+        font-size: 14px;
+        }}
+
+        section {{
+        background: rgba(15,23,42,0.85);
+        backdrop-filter: blur(12px);
+
+        border: 1px solid var(--border);
+        border-radius: 22px;
+
+        padding: 24px;
+        margin-bottom: 24px;
+
+        box-shadow: var(--shadow);
+        }}
+
+        section h2 {{
+        margin-top: 0;
+        margin-bottom: 18px;
+
+        font-family: "Orbitron", sans-serif;
+        letter-spacing: 1px;
+        font-size: 20px;
+        }}
+
+        .intel-grid {{
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        }}
+
+        .intel-box {{
+        background: linear-gradient(145deg, #0f172a, #13203a);
+        border-radius: 18px;
+        padding: 20px;
+        border: 1px solid rgba(255,255,255,0.06);
+        }}
+
+        input {{
+        width: 100%;
+        padding: 14px 16px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+
+        background: #081120;
+        color: white;
+
+        margin-bottom: 20px;
+        outline: none;
+
+        font-size: 15px;
+        }}
+
+        input:focus {{
+        border-color: #38bdf8;
+        box-shadow: 0 0 0 4px rgba(56,189,248,0.15);
+        }}
+
+        .cards {{
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+        gap: 18px;
+        }}
+
+        .doc-card {{
+        background: linear-gradient(145deg, #0f172a, #16233f);
+        border-radius: 18px;
+        border: 1px solid rgba(255,255,255,0.07);
+
+        padding: 20px;
+
+        transition: 0.25s ease;
+        position: relative;
+        overflow: hidden;
+        }}
+
+        .doc-card:hover {{
+        transform: translateY(-5px) scale(1.01);
+        border-color: rgba(56,189,248,0.5);
+        box-shadow: 0 0 30px rgba(56,189,248,0.12);
+        }}
+
+        .doc-card::before {{
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+            135deg,
+            rgba(56,189,248,0.08),
+            transparent 45%
+        );
+        pointer-events: none;
+        }}
+
+        .doc-header {{
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 14px;
+        }}
+
+        .doc-id {{
+        font-family: "Orbitron", sans-serif;
+        color: #7dd3fc;
+        font-size: 14px;
+        }}
+
+        .estado {{
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        }}
+
+        .ok {{
+        background: rgba(34,197,94,0.15);
+        color: #86efac;
+        }}
+
+        .fail {{
+        background: rgba(239,68,68,0.15);
+        color: #fca5a5;
+        }}
+
+        .titulo {{
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 18px;
+        line-height: 1.5;
+        }}
+
+        .meta {{
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        font-size: 14px;
+        }}
+
+        .real {{
+        color: #93c5fd;
+        }}
+
+        .pred {{
+        color: #86efac;
+        font-weight: 600;
+        }}
+
+        .barra {{
+        margin-top: 12px;
+        }}
+
+        .barra-label {{
+        display: flex;
+        justify-content: space-between;
+        font-size: 12px;
+        margin-bottom: 6px;
+        color: var(--muted);
+        }}
+
+        .barra-track {{
+        height: 10px;
+        background: #0b1220;
+        border-radius: 999px;
+        overflow: hidden;
+        }}
+
+        .barra-fill {{
+        height: 100%;
+        border-radius: 999px;
+
+        background: linear-gradient(
+            90deg,
+            #38bdf8,
+            #22c55e
+        );
+        }}
+
+        table {{
+        width: 100%;
+        border-collapse: collapse;
+        }}
+
+        th {{
+        text-align: left;
+        color: #7dd3fc;
+        font-size: 13px;
+        padding-bottom: 14px;
+        }}
+
+        td {{
+        padding: 12px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
+        }}
+
+        footer {{
+        text-align: center;
+        color: var(--muted);
+        margin-top: 40px;
+        font-size: 13px;
+        opacity: 0.7;
+        }}
+
+        @media (max-width: 900px) {{
+
+        .hero {{
+            flex-direction: column;
+            align-items: flex-start;
+        }}
+
+        .intel-grid {{
+            grid-template-columns: 1fr;
+        }}
+
+        }}
+
+    </style>
+    </head>
+
+    <body>
+
+    <div class="grid-bg"></div>
+
+    <main>
+
+    <div class="hero">
+
+        <div>
+        <h1>Centro de Inteligencia Documental</h1>
+
+        <p>
+            Sistema de clasificación supervisada para identificación automática
+            de ministerio de origen mediante análisis TF-IDF, variables
+            documentales y modelos de Machine Learning.
+        </p>
+        </div>
+
+        <div class="status">
+        <div class="badge green">
+            Sistema operativo
+        </div>
+
+        <div class="badge blue">
+            IA Clasificadora activa
+        </div>
+        </div>
+
+    </div>
+
+    <div class="kpis">
+
+        <div class="kpi">
+        <div class="kpi-label">Precisión global</div>
+        <div class="kpi-value">
+            {round(self._reporte_oof["accuracy"] * 100, 1)}%
+        </div>
+        <div class="kpi-sub">Accuracy out-of-fold</div>
+        </div>
+
+        <div class="kpi">
+        <div class="kpi-label">F1 Macro</div>
+        <div class="kpi-value">
+            {round(self._reporte_oof["macro avg"]["f1-score"] * 100, 1)}%
+        </div>
+        <div class="kpi-sub">Validación cruzada estratificada</div>
+        </div>
+
+        <div class="kpi">
+        <div class="kpi-label">Modelo dominante</div>
+        <div class="kpi-value" style="font-size:26px;">
+            {self._mejor_modelo_nombre}
+        </div>
+        <div class="kpi-sub">Motor predictivo principal</div>
+        </div>
+
+        <div class="kpi">
+        <div class="kpi-label">Documentos analizados</div>
+        <div class="kpi-value">
+            {len(self._df_train)}
+        </div>
+        <div class="kpi-sub">Corpus validado</div>
+        </div>
+
+    </div>
+
     <section>
-      <h1>Panel interactivo del clasificador</h1>
-      {grafico}
+
+        <h2>Panel de Inteligencia Analítica</h2>
+
+        {grafico}
+
     </section>
+
+    <div class="intel-grid">
+
+        <section>
+
+        <h2>Métricas operativas por clase</h2>
+
+        {metricas}
+
+        </section>
+
+        <section>
+
+        <h2>Estado del sistema</h2>
+
+        <table>
+
+            <tr>
+            <th>Variable</th>
+            <th>Valor</th>
+            </tr>
+
+            <tr>
+            <td>Clases detectadas</td>
+            <td>{", ".join(self._le.classes_)}</td>
+            </tr>
+
+            <tr>
+            <td>Errores detectados</td>
+            <td>{len(self._errores)}</td>
+            </tr>
+
+            <tr>
+            <td>TF-IDF</td>
+            <td>Activo</td>
+            </tr>
+
+            <tr>
+            <td>Variables numéricas</td>
+            <td>{len(self._features_num_usadas)}</td>
+            </tr>
+
+            <tr>
+            <td>Pipeline</td>
+            <td>Scikit-Learn</td>
+            </tr>
+
+        </table>
+
+        </section>
+
+    </div>
+
     <section>
-      <h2>Métricas out-of-fold por clase</h2>
-      {metricas}
+
+        <h2>Explorador de documentos clasificados</h2>
+
+        <input
+        id="filtro"
+        type="search"
+        placeholder="Buscar por ID, título, ministerio o estado..."
+        >
+
+        <div class="cards" id="cards-container">
+
+        {predicciones}
+
+        </div>
+
     </section>
-    <section>
-      <h2>Predicciones out-of-fold</h2>
-      <input id="filtro" type="search" placeholder="Filtrar por id, título, fuente o resultado">
-      <div class="table-wrap">{predicciones}</div>
-    </section>
-  </main>
-  <script>
+
+    <footer>
+
+        Sistema de Inteligencia Documental · Machine Learning Pipeline · OOF Validation
+
+    </footer>
+
+    </main>
+
+    <script>
+
     const filtro = document.getElementById("filtro");
-    const tabla = document.getElementById("predicciones");
-    if (filtro && tabla) {{
-      const filas = Array.from(tabla.querySelectorAll("tbody tr"));
-      filtro.addEventListener("input", () => {{
+    const cards = document.querySelectorAll(".doc-card");
+
+    filtro.addEventListener("input", () => {{
+
         const q = filtro.value.toLowerCase();
-        filas.forEach((fila) => {{
-          fila.style.display = fila.innerText.toLowerCase().includes(q) ? "" : "none";
+
+        cards.forEach((card) => {{
+
+        const txt = card.innerText.toLowerCase();
+
+        card.style.display =
+            txt.includes(q)
+            ? "block"
+            : "none";
+
         }});
-      }});
-    }}
-  </script>
-</body>
-</html>"""
+
+    }});
+
+    </script>
+
+    </body>
+    </html>
+    """

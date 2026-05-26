@@ -65,7 +65,7 @@ class SpatioTemporalCaso(BaseCaso):
     - Serie temporal multivariante de métricas del corpus por año
     - Detección de anomalías con IsolationForest
     - Mapa estático e interactivo de menciones geográficas
-    - Heatmap lugar × período
+    - Heatmap lugar - período
     """
 
     _FEATURES_ANOMALIA = [
@@ -379,12 +379,13 @@ class SpatioTemporalCaso(BaseCaso):
         ax.grid(True, alpha=0.3)
         fig.tight_layout()
         self._savefig("fig5_3_mapa_geografico.png", fig)
-
+    
     def _html_mapa_interactivo(self) -> None:
         if self._df_geo.empty:
             return
         try:
             import plotly.express as px
+            import plotly.graph_objects as go
         except ImportError:
             logger.warning("plotly no disponible — no se genera el mapa interactivo.")
             return
@@ -392,60 +393,200 @@ class SpatioTemporalCaso(BaseCaso):
         df_plot = self._df_geo.copy()
         df_plot["lugar_label"] = df_plot["lugar"].str.title()
         df_plot["tamano"] = np.sqrt(df_plot["frecuencia"]).clip(lower=1)
+        df_plot["tamano_norm"] = (
+            (df_plot["tamano"] - df_plot["tamano"].min())
+            / (df_plot["tamano"].max() - df_plot["tamano"].min() + 1e-9)
+        )
 
-        fig = px.scatter_geo(
-            df_plot,
-            lat="lat_plot",
-            lon="lon_plot",
-            size="tamano",
-            color="frecuencia",
-            hover_name="lugar_label",
-            hover_data={
-                "lat": ":.4f",
-                "lon": ":.4f",
-                "lat_plot": False,
-                "lon_plot": False,
-                "frecuencia": True,
-                "n_documentos": True,
-                "periodo_principal": True,
-                "tamano": False,
-                "lugar_label": False,
-            },
-            text="lugar_label",
-            color_continuous_scale="YlOrRd",
-            size_max=34,
-            projection="natural earth",
-            title="Figura 5-3 — Mapa Interactivo de Menciones Geográficas",
+        umbral_label = df_plot["frecuencia"].quantile(0.65)
+        df_plot["etiqueta"] = df_plot.apply(
+            lambda r: r["lugar_label"] if r["frecuencia"] >= umbral_label else "", axis=1
         )
-        fig.update_traces(
+
+        fig = go.Figure()
+
+
+        for lugar, df_lugar in df_plot.groupby("lugar_label"):
+            row = df_lugar.iloc[0] 
+            
+            fig.add_trace(go.Scattergeo(
+                lat=[row["lat_plot"]],
+                lon=[row["lon_plot"]],
+                mode="markers+text",
+                name=lugar,  
+                marker=dict(
+                    size=[row["tamano_norm"] * 38 + 8],
+                    color=[row["frecuencia"]],
+                    colorscale=[
+                        [0.0,  "#1a1a2e"], [0.15, "#16213e"], [0.35, "#0f3460"],
+                        [0.55, "#533483"], [0.75, "#e94560"], [1.0,  "#f5a623"],
+                    ],
+                    cmin=df_plot["frecuencia"].min(),
+                    cmax=df_plot["frecuencia"].max(),
+                    opacity=0.88,
+                    line=dict(width=1.2, color="rgba(255,255,255,0.25)"),
+                ),
+                text=[row["etiqueta"]],
+                textfont=dict(
+                    family="'EB Garamond', 'Garamond', Georgia, serif",
+                    size=11,
+                    color="rgba(255,255,255,0.90)",
+                ),
+                textposition="top center",
+                customdata=[[row["frecuencia"], row["n_documentos"], row["periodo_principal"], row["lugar_raw"]]],
+                hovertemplate=(
+                    "<b style='font-size:14px'>%{text}</b><br>"
+                    "<span style='color:#aaa'>──────────────────</span><br>"
+                    "Menciones totales: <b>%{customdata[0]}</b><br>"
+                    "Documentos: <b>%{customdata[1]}</b><br>"
+                    "Período principal: <b>%{customdata[2]}</b><br>"
+                    "<span style='color:#88; font-size:10px'>%{customdata[3]}</span>"
+                    "<extra></extra>"
+                ),
+            ))
+
+        fig.update_layout(
+            showlegend=True,
+            legend=dict(
+                title=dict(text="LUGARES", font=dict(family="'Courier New', monospace", size=11, color="#aaaaaa")),
+                font=dict(family="'EB Garamond', Georgia, serif", size=12, color="#f0ece4"),
+                bgcolor="rgba(13,17,23,0.5)",
+                bordercolor="rgba(255,255,255,0.1)",
+                borderwidth=1,
+                orientation="v",
+                x=1.02,
+                y=1,
+                yanchor="top"
+            ),
+        )
+
+        fig.add_trace(go.Scattergeo(
+            lat=df_plot["lat_plot"],
+            lon=df_plot["lon_plot"],
             mode="markers+text",
-            marker=dict(line=dict(width=1, color="#2b2b2b"), opacity=0.78),
+            marker=dict(
+                size=df_plot["tamano_norm"] * 38 + 8,
+                color=df_plot["frecuencia"],
+                colorscale=[
+                    [0.0,  "#1a1a2e"],
+                    [0.15, "#16213e"],
+                    [0.35, "#0f3460"],
+                    [0.55, "#533483"],
+                    [0.75, "#e94560"],
+                    [1.0,  "#f5a623"],
+                ],
+                cmin=df_plot["frecuencia"].min(),
+                cmax=df_plot["frecuencia"].max(),
+                opacity=0.88,
+                line=dict(width=1.2, color="rgba(255,255,255,0.25)"),
+                colorbar=dict(
+                    title=dict(
+                        text="MENCIONES",
+                        font=dict(family="'Courier New', monospace", size=11,
+                                color="#aaaaaa"),
+                        side="right",
+                    ),
+                    tickfont=dict(family="'Courier New', monospace", size=10,
+                                color="#888888"),
+                    thickness=12,
+                    len=0.55,
+                    x=1.01,
+                    bgcolor="rgba(15,15,25,0)",
+                    borderwidth=0,
+                    outlinewidth=0,
+                ),
+            ),
+            text=df_plot["etiqueta"],
+            textfont=dict(
+                family="'EB Garamond', 'Garamond', Georgia, serif",
+                size=11,
+                color="rgba(255,255,255,0.90)",
+            ),
             textposition="top center",
-            textfont=dict(size=10, color="#222"),
-        )
+            customdata=df_plot[["frecuencia", "n_documentos", "periodo_principal",
+                                "lugar_raw"]].values,
+            hovertemplate=(
+                "<b style='font-size:14px'>%{text}</b><br>"
+                "<span style='color:#aaa'>──────────────────</span><br>"
+                "Menciones totales: <b>%{customdata[0]}</b><br>"
+                "Documentos: <b>%{customdata[1]}</b><br>"
+                "Período principal: <b>%{customdata[2]}</b><br>"
+                "<span style='color:#888; font-size:10px'>%{customdata[3]}</span>"
+                "<extra></extra>"
+            ),
+            name="",
+        ))
+
         fig.update_geos(
             fitbounds="locations",
-            visible=True,
-            showland=True,
-            landcolor="#f7f4eb",
-            showcountries=True,
-            countrycolor="#9aa0a6",
-            showocean=True,
-            oceancolor="#dceaf5",
+            resolution=50,
+            showland=True,       landcolor="#1c1c2e",
+            showocean=True,      oceancolor="#0d1117",
+            showlakes=True,      lakecolor="#111827",
+            showrivers=True,     rivercolor="#1e2a3a",
+            showcountries=True,  countrycolor="rgba(255,255,255,0.12)",
+            showcoastlines=True, coastlinecolor="rgba(255,255,255,0.18)",
+            showframe=False,
+            bgcolor="#0d1117",
             lataxis_showgrid=True,
             lonaxis_showgrid=True,
-        )
-        fig.update_layout(
-            width=1100,
-            height=720,
-            margin=dict(l=20, r=20, t=70, b=20),
-            coloraxis_colorbar=dict(title="Menciones"),
-            font=dict(family="Arial", size=13),
+            lataxis_gridcolor="rgba(255,255,255,0.04)",
+            lonaxis_gridcolor="rgba(255,255,255,0.04)",
         )
 
+        fig.update_layout(
+            paper_bgcolor="#0d1117",
+            plot_bgcolor="#0d1117",
+            width=1200,
+            height=740,
+            margin=dict(l=0, r=0, t=90, b=0),
+            title=dict(
+                text=(
+                    "<span style='font-family:\"EB Garamond\",Georgia,serif;"
+                    "font-size:22px;color:#f0ece4;letter-spacing:2px'>"
+                    "GEOGRAFÍA DEL CORPUS</span>"
+                    "<br>"
+                    "<span style='font-family:\"Courier New\",monospace;"
+                    "font-size:12px;color:#555555;letter-spacing:4px'>"
+                    "DISTRIBUCIÓN ESPACIAL DE MENCIONES</span>"
+                ),
+                x=0.04,
+                xanchor="left",
+                y=0.97,
+                yanchor="top",
+            ),
+            hoverlabel=dict(
+                bgcolor="#1a1a2e",
+                bordercolor="#533483",
+                font=dict(
+                    family="'EB Garamond', Georgia, serif",
+                    size=13,
+                    color="#f0ece4",
+                ),
+            ),
+            font=dict(family="'EB Garamond', Georgia, serif", color="#aaaaaa"),
+        )
+
+        html_raw = fig.to_html(include_plotlyjs=True, full_html=True)
+
+        font_inject = (
+            "<link rel='preconnect' href='https://fonts.googleapis.com'>"
+            "<link rel='preconnect' href='https://fonts.gstatic.com' crossorigin>"
+            "<link href='https://fonts.googleapis.com/css2?"
+            "family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap' rel='stylesheet'>"
+            "<style>"
+            "  body { background:#0d1117; margin:0; padding:0; }"
+            "  .js-plotly-plot .plotly .modebar { background:rgba(13,17,23,0.8)!important; }"
+            "  .js-plotly-plot .plotly .modebar-btn path { fill:#555!important; }"
+            "  .js-plotly-plot .plotly .modebar-btn:hover path { fill:#f5a623!important; }"
+            "</style>"
+        )
+        html_raw = html_raw.replace("<head>", "<head>" + font_inject, 1)
+
         path = self.fig_dir / "fig5_3_mapa_geografico_interactivo.html"
-        fig.write_html(path, include_plotlyjs=True, full_html=True)
+        path.write_text(html_raw, encoding="utf-8")
         logger.info("Mapa interactivo guardado: %s", path)
+
 
     def _fig_heatmap_lugar_periodo(self) -> None:
         if self._df_geo.empty:
@@ -474,7 +615,7 @@ class SpatioTemporalCaso(BaseCaso):
                     cbar_kws={"label": "N menciones"})
         ax.set_yticklabels([n.title() for n in matriz.index], rotation=0, fontsize=9)
         ax.set_xticklabels(periodos_orden, rotation=15)
-        ax.set_title("Figura 5-4 — Menciones Geográficas × Período Histórico",
+        ax.set_title("Figura 5-4 — Menciones Geográficas - Período Histórico",
                      fontweight="bold")
         ax.set_ylabel("Lugar")
         ax.set_xlabel("Período")
