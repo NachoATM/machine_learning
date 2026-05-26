@@ -405,7 +405,7 @@ class ActorGraphCaso(BaseCaso):
         self._savefig("fig2_2_subgrafos_periodo.png", fig)
 
     def _html_panel_interactivo(self) -> None:
-        """Genera un panel HTML con red explorable, resumen y tabla filtrable."""
+        """Genera un panel HTML con red explorable, resumen y tabla filtrable (Estilo Oscuro Académico)."""
         if self._graph is None or self._graph.number_of_nodes() == 0:
             return
         try:
@@ -429,30 +429,54 @@ class ActorGraphCaso(BaseCaso):
         for nombre in redes:
             visible = [trace_name == nombre for trace_name in trace_names]
             buttons.append({
-                "label": nombre,
+                "label": f" {nombre.upper()} ",
                 "method": "update",
                 "args": [
                     {"visible": visible},
-                    {"title": f"Figura 2-3 — Red interactiva de actores: {nombre}"},
+                    {"title.text": (
+                        "<span style='font-family:\"EB Garamond\",Georgia,serif;font-size:22px;color:#f0ece4;letter-spacing:2px'>"
+                        "GRAFO DE CO-MENCIONES</span><br>"
+                        f"<span style='font-family:\"Courier New\",monospace;font-size:12px;color:#e94560;letter-spacing:3px'>Capa: {nombre.upper()}</span>"
+                    )},
                 ],
             })
 
         fig.update_layout(
-            title="Figura 2-3 — Red interactiva de actores: Red completa",
-            template="plotly_white",
-            height=720,
+            title=dict(
+                text=(
+                    "<span style='font-family:\"EB Garamond\",Georgia,serif;font-size:22px;color:#f0ece4;letter-spacing:2px'>"
+                    "GRAFO DE CO-MENCIONES</span><br>"
+                    "<span style='font-family:\"Courier New\",monospace;font-size:12px;color:#555555;letter-spacing:3px'>DISTRIBUCIÓN DE ACTORES DEL 23-F</span>"
+                ),
+                x=0.02,
+                xanchor="left",
+                y=0.96,
+                yanchor="top",
+            ),
+            paper_bgcolor="#0d1117",
+            plot_bgcolor="#0d1117",
+            height=680,
             showlegend=False,
-            margin=dict(l=20, r=20, t=90, b=20),
+            margin=dict(l=20, r=20, t=100, b=20),
             updatemenus=[{
                 "buttons": buttons,
                 "direction": "down",
-                "x": 0.01,
-                "y": 1.08,
-                "xanchor": "left",
+                "x": 0.98,
+                "y": 1.12,
+                "xanchor": "right",
                 "yanchor": "top",
+                "bgcolor": "#1a1a2e",
+                "bordercolor": "#533483",
+                "font": dict(family="'Courier New', monospace", size=11, color="#f0ece4"),
+                "active": 0
             }],
-            xaxis=dict(visible=False),
-            yaxis=dict(visible=False),
+            xaxis=dict(visible=False, showgrid=False, zeroline=False),
+            yaxis=dict(visible=False, showgrid=False, zeroline=False),
+            hoverlabel=dict(
+                bgcolor="#1a1a2e",
+                bordercolor="#533483",
+                font=dict(family="'EB Garamond', Georgia, serif", size=13, color="#f0ece4"),
+            ),
         )
 
         html_fig = fig.to_html(full_html=False, include_plotlyjs=True)
@@ -476,7 +500,7 @@ class ActorGraphCaso(BaseCaso):
             x=edge_x,
             y=edge_y,
             mode="lines",
-            line=dict(width=0.7, color="rgba(80, 86, 96, 0.35)"),
+            line=dict(width=0.8, color="rgba(83, 52, 131, 0.25)"), 
             hoverinfo="skip",
             visible=(nombre == "Red completa"),
         )
@@ -491,11 +515,11 @@ class ActorGraphCaso(BaseCaso):
             comunidad = int(self._partition.get(node, -1))
             node_x.append(x)
             node_y.append(y)
-            sizes.append(12 + 34 * degrees.get(node, 1) / max_degree)
+            sizes.append(14 + 36 * degrees.get(node, 1) / max_degree)
             colors.append(COMM_COLORS[comunidad % len(COMM_COLORS)] if comunidad >= 0 else "#888888")
             texts.append(self._label(node))
             custom.append([
-                node,
+                node.title(),
                 int(G.nodes[node].get("n_docs", 0)),
                 float(row.get("pagerank", 0)) if hasattr(row, "get") else 0,
                 float(row.get("betweenness", 0)) if hasattr(row, "get") else 0,
@@ -509,21 +533,28 @@ class ActorGraphCaso(BaseCaso):
             mode="markers+text",
             text=texts,
             textposition="top center",
-            textfont=dict(size=10),
-            marker=dict(size=sizes, color=colors, line=dict(width=1, color="#ffffff"), opacity=0.92),
+            textfont=dict(family="'EB Garamond', Georgia, serif", size=11, color="rgba(255,255,255,0.85)"),
+            marker=dict(
+                size=sizes, 
+                color=colors, 
+                line=dict(width=1.2, color="rgba(255,255,255,0.3)"), 
+                opacity=0.90
+            ),
             customdata=custom,
             hovertemplate=(
-                "<b>%{customdata[0]}</b><br>"
-                "Documentos: %{customdata[1]}<br>"
-                "PageRank: %{customdata[2]:.4f}<br>"
-                "Betweenness: %{customdata[3]:.4f}<br>"
-                "Degree ponderado: %{customdata[4]}<br>"
-                "Comunidad: %{customdata[5]}<extra></extra>"
+                "<b style='font-size:15px; color:#f5a623'>%{customdata[0]}</b><br>"
+                "<span style='color:#555'>───────────────────────</span><br>"
+                "Menciones (Degree w): <b>%{customdata[4]}</b><br>"
+                "Apariciones en Docs: <b>%{customdata[1]}</b><br>"
+                "PageRank: <b>%{customdata[2]:.5f}</b><br>"
+                "Betweenness: <b>%{customdata[3]:.5f}</b><br>"
+                "Comunidad: <span style='color:#e94560'><b>Grupo %{customdata[5]}</b></span>"
+                "<extra></extra>"
             ),
             visible=(nombre == "Red completa"),
         )
         return edge_trace, node_trace
-
+    
     def _tabla_top_actores_html(self) -> str:
         if self._centrality_df.empty:
             return ""
@@ -559,81 +590,153 @@ class ActorGraphCaso(BaseCaso):
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Panel interactivo caso 2</title>
+  <title>Análisis de Red Histórica — Caso 2</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
   <style>
     body {{
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      color: #1f2933;
-      background: #f6f8fa;
+      padding: 0;
+      font-family: 'EB Garamond', Georgia, serif;
+      color: #aaaaaa;
+      background: #0d1117;
     }}
     main {{
       max-width: 1240px;
       margin: 0 auto;
-      padding: 24px;
+      padding: 30px 20px;
+    }}
+    header {{
+      margin-bottom: 25px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      padding-bottom: 15px;
+    }}
+    header h1 {{
+      font-size: 28px;
+      color: #f0ece4;
+      margin: 0 0 5px;
+      letter-spacing: 2px;
+      font-weight: 400;
+    }}
+    header p {{
+      margin: 0;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      color: #555555;
+      letter-spacing: 3px;
     }}
     section {{
-      background: #ffffff;
-      border: 1px solid #d9dee7;
-      border-radius: 8px;
-      margin-bottom: 18px;
-      padding: 16px;
+      background: #11161d;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: 4px;
+      margin-bottom: 24px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
     }}
-    h1, h2 {{
-      margin: 0 0 12px;
-      letter-spacing: 0;
+    h2 {{
+      font-size: 18px;
+      color: #f0ece4;
+      margin: 0 0 15px;
+      font-weight: 400;
+      letter-spacing: 1px;
+      border-left: 2px solid #533483;
+      padding-left: 10px;
     }}
-    h1 {{ font-size: 24px; }}
-    h2 {{ font-size: 17px; }}
-    input {{
-      width: min(520px, 100%);
-      padding: 9px 11px;
-      border: 1px solid #b8c2cc;
-      border-radius: 6px;
-      font-size: 14px;
-      margin-bottom: 12px;
+    
+    /* Buscador minimalista estilo terminal */
+    input[type="search"] {{
+      width: min(450px, 100%);
+      background: #1a1a2e;
+      border: 1px solid #3d2b56;
+      border-radius: 4px;
+      padding: 8px 12px;
+      color: #f0ece4;
+      font-family: 'Courier New', monospace;
+      font-size: 12px;
+      margin-bottom: 15px;
+    }}
+    input[type="search"]:focus {{
+      outline: none;
+      border-color: #e94560;
+    }}
+
+    /* Tablas Académicas Oscuras */
+    .table-wrap {{
+      max-height: 450px;
+      overflow: auto;
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 4px;
+      background: #0d1117;
     }}
     .tabla {{
       width: 100%;
       border-collapse: collapse;
-      font-size: 13px;
+      font-size: 14px;
     }}
     .tabla th {{
       text-align: left;
-      background: #eef2f7;
+      background: #161b22;
+      color: #f0ece4;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      letter-spacing: 1px;
       position: sticky;
       top: 0;
+      z-index: 10;
+      border-bottom: 2px solid rgba(255,255,255,0.1);
     }}
     .tabla th, .tabla td {{
-      padding: 8px 10px;
-      border-bottom: 1px solid #e1e6ee;
-      vertical-align: top;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
     }}
-    .compacta {{ max-width: 760px; }}
-    .table-wrap {{
-      max-height: 520px;
-      overflow: auto;
-      border: 1px solid #e1e6ee;
-      border-radius: 6px;
+    .tabla tr:hover td {{
+      background: rgba(83, 52, 131, 0.15);
+      color: #ffffff;
+    }}
+    .compacta {{ max-width: 100%; }}
+    
+    /* Customización del menu flotante de Plotly */
+    .js-plotly-plot .plotly .modebar {{
+      background: rgba(13,17,23,0.8)!important;
+    }}
+    .js-plotly-plot .plotly .modebar-btn path {{
+      fill: #555!important;
+    }}
+    .js-plotly-plot .plotly .modebar-btn:hover path {{
+      fill: #f5a623!important;
     }}
   </style>
 </head>
 <body>
   <main>
-    <section>
-      <h1>Panel interactivo de actores del 23-F</h1>
+    <header>
+      <h1>PROCESAMIENTO DE RELACIONES ACTORALES</h1>
+      <p>CASO DE ESTUDIO 2 — CORPUS DEL GOLPE DE ESTADO DEL 23-F</p>
+    </header>
+
+    <section style="padding:10px; background:#0d1117;">
       {grafico}
     </section>
-    <section>
-      <h2>Resumen por período</h2>
-      {resumen}
-    </section>
-    <section>
-      <h2>Top actores por PageRank</h2>
-      <input id="filtro" type="search" placeholder="Filtrar por actor, métrica o comunidad">
-      <div class="table-wrap">{actores}</div>
-    </section>
+
+    <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; margin-top: 5px;">
+      <section>
+        <h2>Resumen Estructural por Período</h2>
+        <div class="table-wrap" style="max-height: unset;">
+          {resumen}
+        </div>
+      </section>
+
+      <section>
+        <h2>Métricas de Centralidad de Actores</h2>
+        <input id="filtro" type="search" placeholder="> Filtrar actor o grupo...">
+        <div class="table-wrap">
+          {actores}
+        </div>
+      </section>
+    </div>
   </main>
+
   <script>
     const filtro = document.getElementById("filtro");
     const tabla = document.getElementById("actores");
