@@ -55,6 +55,47 @@ PERIODO_COLORS = {
     "Desconocido":      "#888888",
 }
 
+ALIAS_PERSONAS = {
+    "tejero": "antonio tejero",
+    "tcol tejero": "antonio tejero",
+    "tcol. tejero": "antonio tejero",
+    "teniente coronel tejero": "antonio tejero",
+    "coronel tejero": "antonio tejero",
+    "antonio tejero molina": "antonio tejero",
+
+    "general armada": "alfonso armada",
+    "armada": "alfonso armada",
+
+    "general milans del bosch": "jaime milans del bosch",
+    "teniente general milans del bosch": "jaime milans del bosch",
+    "milans del bosch": "jaime milans del bosch",
+
+    "rey": "juan carlos i",
+    "el rey": "juan carlos i",
+    "s.m": "juan carlos i",
+    "s.m.": "juan carlos i",
+    "s.m el rey": "juan carlos i",
+    "s.m. el rey": "juan carlos i",
+    "rey juan carlos": "juan carlos i",
+    "king juan carlos": "juan carlos i",
+    "juan carlos": "juan carlos i",
+    "S M El Rey": "juan carlos i",
+
+    "comandante cortina": "josé luis cortina",
+    "cortina": "josé luis cortina",
+
+    "general torres rojas": "torres rojas",
+
+    "general juste": "juste",
+    "coronel manchado": "manchado",
+    "coronel ibáñez": "ibáñez",
+    "coronel escandell": "escandell",
+    "coronel san martín": "san martín",
+    "comandante pardo": "pardo",
+    "capitán abad": "abad",
+    "capitán gómez iglesias": "gómez iglesias",
+}
+
 
 class ActorGraphCaso(BaseCaso):
     """
@@ -231,19 +272,71 @@ class ActorGraphCaso(BaseCaso):
                 personas.append(nombre)
         return personas
 
+    # @staticmethod
+    # def _normalizar_nombre(nombre: str) -> str:
+    #     nombre = nombre.split(":", 1)[0]
+    #     nombre = " ".join(nombre.replace("---", " ").replace("\n", " ").split())
+    #     nombre = re.sub(r"\b(sr|sra|d|don|doña)\.?\s+", "", nombre, flags=re.IGNORECASE)
+    #     nombre = nombre.strip(" .;,-").lower()
+    #     ruido = {
+    #         "no consta", "tribunal", "defensores", "procesados", "periodistas",
+    #         "ministerio fiscal", "familias", "comisiones militares",
+    #         "consejo supremo de justicia militar",
+    #     }
+    #     if not nombre or nombre in ruido or len(nombre) < 3:
+    #         return ""
+    #     return nombre
+
     @staticmethod
     def _normalizar_nombre(nombre: str) -> str:
         nombre = nombre.split(":", 1)[0]
-        nombre = " ".join(nombre.replace("---", " ").replace("\n", " ").split())
-        nombre = re.sub(r"\b(sr|sra|d|don|doña)\.?\s+", "", nombre, flags=re.IGNORECASE)
+
+        nombre = (
+            nombre.replace("---", " ")
+            .replace("\n", " ")
+            .replace(".", " ")
+        )
+
+        nombre = " ".join(nombre.split())
+
+        nombre = re.sub(
+            r"\b("
+            r"sr|sra|don|doña|excmo|excma|señor|señora|"
+            r"general|teniente|coronel|capitán|comandante|"
+            r"tcol|tcnel|ministro|presidente|fiscal"
+            r")\b",
+            "",
+            nombre,
+            flags=re.IGNORECASE,
+        )
+
+        nombre = " ".join(nombre.split())
         nombre = nombre.strip(" .;,-").lower()
+
         ruido = {
-            "no consta", "tribunal", "defensores", "procesados", "periodistas",
-            "ministerio fiscal", "familias", "comisiones militares",
-            "consejo supremo de justicia militar",
+            "",
+            "no consta",
+            "españa",
+            "cesid",
+            "fiscal",
+            "el fiscal",
+            "presidente",
+            "presidente del consejo",
+            "presidente de la sala",
+            "parlamento español",
+            "el pueblo español",
+            "ministerio fiscal",
+            "ministro de defensa",
+            "excmo ministro de defensa",
+            "excmo señor ministro de defensa",
+            "excmo señor ministro de asuntos exteriores",
         }
-        if not nombre or nombre in ruido or len(nombre) < 3:
+
+        if nombre in ruido or len(nombre) < 3:
             return ""
+
+        nombre = ALIAS_PERSONAS.get(nombre, nombre)
+
         return nombre
 
     def _subgrafo_top(self, G: "nx.Graph", max_nodos: int = 60) -> "nx.Graph":
@@ -479,6 +572,7 @@ class ActorGraphCaso(BaseCaso):
             ),
         )
 
+        # Extraemos solo el div inyectable
         html_fig = fig.to_html(full_html=False, include_plotlyjs=True)
         panel = self._envolver_panel_html(html_fig)
         path = self.fig_dir / "fig2_3_panel_grafo_interactivo.html"
@@ -500,7 +594,7 @@ class ActorGraphCaso(BaseCaso):
             x=edge_x,
             y=edge_y,
             mode="lines",
-            line=dict(width=0.8, color="rgba(83, 52, 131, 0.25)"), 
+            line=dict(width=0.8, color="rgba(83, 52, 131, 0.25)"), # Toque sutil de color de red
             hoverinfo="skip",
             visible=(nombre == "Red completa"),
         )
