@@ -30,6 +30,7 @@ Fuentes adicionales:
 ## Herramientas usadas en el proyecto:
 
 * Python
+* HTML
 
 ---
 
@@ -38,10 +39,12 @@ Estructura:
 ```
 project/
 │── data/
-│── notebooks/
-│── src/
+│── figuras/
 │── outputs/
+│── src/
+│── .gitignore
 │── README.md
+│── main.ipynb
 │── requirements.txt
 ```
 
